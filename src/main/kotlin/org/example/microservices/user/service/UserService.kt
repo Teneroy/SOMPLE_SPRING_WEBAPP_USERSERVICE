@@ -38,9 +38,11 @@ class UserService {
         user.activationCode = UUID.randomUUID().toString()
         user.password = passwordEncoder.encode(user.password)
 
-        /*
-        * send Email
-        * */
+        if (!sendEmail(user)) {
+            return false
+        }
+
+        userRepo.save(user)
 
         return true
     }
@@ -63,12 +65,43 @@ class UserService {
         return userRepo.findAll()
     }
 
-    fun saveUser(user: User, password: String, email: String): Boolean {
+    fun saveUser(userId: Long, roles:Set<Role>): Boolean {
+        val user: Optional<User> = userRepo.findById(userId) ?: return false
+
+        val userToRepo = User(userId, user.get().username, user.get().email, user.get().password, roles)
+
+        userToRepo.active = true
+
+        userRepo.save(userToRepo)
 
         return true
     }
 
     fun updateProfile(user: User, password: String, email: String): Boolean {
+        val userEmail: String = user.email
+
+        val emailChanged: Boolean = (email != userEmail)
+
+        if(emailChanged) {
+            user.email = email
+
+            if(email.isNotEmpty()) {
+                user.activationCode = UUID.randomUUID().toString()
+            }
+        }
+
+        if(password.isNotEmpty()) {
+            user.password = passwordEncoder.encode(password)
+        }
+
+        if(emailChanged) {
+            if (!sendEmail(user)) {
+                return false
+            }
+        }
+
+        userRepo.save(user)
+
         return true
     }
 
