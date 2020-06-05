@@ -2,13 +2,18 @@ package org.example.microservices.user.service
 
 import org.example.microservices.user.domain.Role
 import org.example.microservices.user.domain.User
+import org.example.microservices.user.domain.dto.MailResponseDto
 import org.example.microservices.user.repos.UserRepo
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.http.ResponseEntity
 import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import org.springframework.web.client.RestTemplate
+import org.springframework.web.client.getForEntity
 import java.util.*
+import kotlin.collections.HashMap
 
 @Service
 class UserService {
@@ -48,6 +53,33 @@ class UserService {
     }
 
     fun sendEmail(user: User): Boolean {
+        val text = "Hello, ${user.username}! \n" + "Welcome to our awesome Board application. Please, visit this link to activate your account: http://${hostname}/activate/${user.activationCode}"
+
+        val uriVariables: Map<String, String> = mapOf(
+                "to" to user.email,
+                "title" to "Activation code",
+                "text" to text
+        )
+
+        val responseEntity: ResponseEntity<MailResponseDto> = RestTemplate().getForEntity(
+                "http://${hostname}:8102/mail/send",
+                MailResponseDto::class,
+                uriVariables
+        )
+
+        val response: MailResponseDto = responseEntity.body ?: return false
+
+        if(!response.success) {
+            print(
+                    response.from + "\n"
+                    + response.to + "\n"
+                    + response.title + "\n"
+                    + response.text + "\n\n"
+                    + response.error
+            )
+            return false
+        }
+
         return true
     }
 
